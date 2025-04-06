@@ -12,6 +12,7 @@ export default function ComfyUIControl() {
   const [installMethod, setInstallMethod] = useState<'git' | 'zip'>('git');
   const [installPath, setInstallPath] = useState<string>('');
   const [isInstalling, setIsInstalling] = useState<boolean>(false);
+  const [autoStartAttempted, setAutoStartAttempted] = useState<boolean>(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const fetchStatus = async () => {
@@ -26,18 +27,32 @@ export default function ComfyUIControl() {
       }
       
       // If installed, check the running status
-      const statusData = await getComfyUIStatus();
-      setStatus(statusData.status);
-      
-      if (statusData.status === 'not_configured') {
-        setComfyUIPath(statusData.comfyui_path || 'Not set');
-        setError(statusData.message || 'ComfyUI path not configured or does not exist');
-      } else if (statusData.status === 'running') {
-        fetchLogs();
+      try {
+        const statusData = await getComfyUIStatus();
+        
+        // Only update status if we got a valid response
+        if (statusData && statusData.status) {
+          setStatus(statusData.status);
+          
+          if (statusData.status === 'not_configured') {
+            setComfyUIPath(statusData.comfyui_path || 'Not set');
+            setError(statusData.message || 'ComfyUI path not configured or does not exist');
+          } else if (statusData.status === 'running') {
+            fetchLogs();
+            setError(null);
+          } else if (statusData.status === 'stopped') {
+            setError(null);
+          }
+        }
+      } catch (statusErr) {
+        console.error('Failed to fetch ComfyUI status:', statusErr);
+        // If we can't get the status, assume it's stopped but don't change the current status
+        // This prevents automatic restart attempts
+        setError('Failed to connect to ComfyUI. Check your configuration.');
       }
     } catch (err) {
-      console.error('Failed to fetch ComfyUI status:', err);
-      setError('Failed to fetch ComfyUI status');
+      console.error('Failed to fetch ComfyUI installation status:', err);
+      setError('Failed to connect to backend API');
     }
   };
 
@@ -56,13 +71,23 @@ export default function ComfyUIControl() {
   };
 
   useEffect(() => {
+    // Initial fetch of status without auto-starting
     fetchStatus();
+    
+    // Set up polling interval
     const interval = setInterval(() => {
       fetchStatus();
     }, 5000);
 
     return () => clearInterval(interval);
   }, []);
+
+  // Disable auto-start behavior
+  useEffect(() => {
+    if (status === 'running' && !autoStartAttempted) {
+      setAutoStartAttempted(true);
+    }
+  }, [status, autoStartAttempted]);
 
   useEffect(() => {
     if (status === 'running') {
@@ -78,12 +103,20 @@ export default function ComfyUIControl() {
     try {
       setStatus('starting');
       setError(null);
-      await startComfyUI();
+      const result = await startComfyUI();
+      
+      if (result.status === 'error') {
+        console.error('Failed to start ComfyUI:', result.message);
+        setError(result.message || 'Failed to start ComfyUI');
+        setStatus('stopped');
+        return;
+      }
+      
       setStatus('running');
       fetchLogs();
     } catch (err) {
       console.error('Failed to start ComfyUI:', err);
-      setError('Failed to start ComfyUI');
+      setError('Failed to start ComfyUI: ' + (err instanceof Error ? err.message : 'Unknown error'));
       setStatus('stopped');
     }
   };
