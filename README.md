@@ -151,20 +151,100 @@ npm run dev:frontend
 
 The frontend is built with:
 
-- Next.js for the React framework
-- Tailwind CSS for styling
-- SWR for data fetching
-- Chart.js for visualizations
-- Zustand for state management
+- **Next.js**: React framework for building server-rendered applications
+- **React**: JavaScript library for building user interfaces
+- **Tailwind CSS**: Utility-first CSS framework for rapid UI development
+- **SWR**: React Hooks library for data fetching with built-in caching and revalidation
+- **Chart.js**: JavaScript charting library for visualizing data
+- **Zustand**: Lightweight state management solution
+
+#### Frontend Structure
+
+```
+src/
+├── app/                 # Next.js app directory
+│   ├── (dashboard)/      # Dashboard route group
+│   │   ├── comfyui/       # ComfyUI management page
+│   │   ├── custom-nodes/  # Custom nodes management page
+│   │   ├── models/        # Models management page
+│   │   └── settings/      # Settings page
+│   ├── api/              # API route handlers
+│   ├── layout.tsx        # Root layout component
+│   └── page.tsx          # Home page component
+├── components/          # Reusable React components
+│   ├── DashboardStats.tsx # System stats dashboard component
+│   ├── ModelManager.tsx   # Model management component
+│   ├── Sidebar.tsx        # Navigation sidebar component
+│   └── SettingsManager.tsx # Settings management component
+├── hooks/               # Custom React hooks
+├── services/            # API service modules
+│   ├── comfyuiService.ts  # ComfyUI API service
+│   ├── modelService.ts    # Models API service
+│   ├── settingsService.ts # Settings API service
+│   └── systemService.ts   # System monitoring API service
+├── styles/              # Global styles
+└── types/               # TypeScript type definitions
+```
+
+#### Key Features
+
+- **Responsive Dashboard**: Adapts to different screen sizes for desktop and mobile use
+- **Real-time Updates**: Live system statistics with customizable refresh intervals
+- **Dark/Light Mode**: Theme support for user preference
+- **Interactive Charts**: Visual representation of system resource usage
+- **Intuitive Navigation**: Sidebar with easy access to all features
 
 ### Backend
 
 The backend is built with:
 
-- FastAPI for the API framework
-- Pydantic for data validation
-- Uvicorn as the ASGI server
-- Various Python utilities for system monitoring and process management
+- **FastAPI**: Modern, high-performance web framework for building APIs
+- **Pydantic**: Data validation and settings management using Python type annotations
+- **Uvicorn**: Lightning-fast ASGI server implementation
+- **Psutil**: Cross-platform library for retrieving system information and process utilities
+- **Python-dotenv**: For loading environment variables from .env files
+
+#### Backend Structure
+
+```
+backend/
+├── api/                  # API endpoints organized by feature
+│   ├── comfyui.py       # ComfyUI process management endpoints
+│   ├── custom_nodes.py  # Custom nodes management endpoints
+│   ├── install.py       # Installation utilities endpoints
+│   ├── models.py        # Model management endpoints
+│   ├── settings.py      # Settings management endpoints
+│   └── system.py        # System monitoring endpoints
+├── data/                # Data storage directory
+│   └── settings.json    # Application settings
+├── utils/               # Utility modules
+│   ├── comfyui.py       # ComfyUI process utilities
+│   ├── custom_nodes.py  # Custom nodes management utilities
+│   ├── models.py        # Model management utilities
+│   ├── settings_manager.py # Settings management utilities
+│   └── system_info.py   # System information utilities
+├── main.py              # FastAPI application entry point
+├── requirements.txt     # Python dependencies
+└── run_server.py        # Server startup script
+```
+
+#### API Endpoints
+
+The backend provides the following API endpoints:
+
+- `/api/system`: System monitoring endpoints (CPU, RAM, GPU usage)
+- `/api/models`: Model management endpoints (list, download, install)
+- `/api/comfyui`: ComfyUI process management endpoints (start, stop, restart)
+- `/api/settings`: Settings management endpoints (get, update)
+- `/api/custom-nodes`: Custom nodes management endpoints (list, install, update)
+- `/api/install`: Installation utilities endpoints
+
+#### API Documentation
+
+When the backend is running, you can access the API documentation at:
+
+- Swagger UI: http://localhost:8618/docs
+- ReDoc: http://localhost:8618/redoc
 
 ## Building for Production
 
