@@ -57,8 +57,32 @@ function startBackendServer() {
   // Get the absolute path to the backend directory
   const backendPath = path.join(__dirname, 'backend');
   
+  // Check if .env file exists, if not create a default one
+  const envPath = path.join(backendPath, '.env');
+  const envExamplePath = path.join(backendPath, '.env.example');
+  
+  if (!fs.existsSync(envPath)) {
+    console.log('No .env file found in backend directory, creating a default one...');
+    try {
+      if (fs.existsSync(envExamplePath)) {
+        // Copy from example if it exists
+        fs.copyFileSync(envExamplePath, envPath);
+        console.log('Created .env file from .env.example');
+      } else {
+        // Create a basic .env file
+        const defaultEnv = 'API_PORT=8618\nCOMFYUI_PATH=../../../';
+        fs.writeFileSync(envPath, defaultEnv);
+        console.log('Created default .env file');
+      }
+    } catch (error) {
+      console.error('Error creating .env file:', error);
+    }
+  }
+  
   // Command to run the backend server
   const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  
+  console.log(`Running backend with command: ${pythonCmd} run_server.py in directory ${backendPath}`);
   
   // Spawn the backend process
   const backendProcess = spawn(pythonCmd, ['run_server.py'], {
@@ -67,9 +91,29 @@ function startBackendServer() {
     shell: true
   });
   
+  // Flag to track if the server started successfully
+  let serverStarted = false;
+  let startTimeout = setTimeout(() => {
+    if (!serverStarted) {
+      console.error('Backend server failed to start within the expected time');
+      console.log('Please check your backend configuration and try again');
+      console.log('You may need to start the backend manually with: cd backend && python run_server.py');
+    }
+  }, 10000);
+  
   // Log backend output
   backendProcess.stdout.on('data', (data) => {
-    console.log(`Backend: ${data}`);
+    const output = data.toString();
+    console.log(`Backend: ${output}`);
+    
+    // Check if server started successfully
+    if (output.includes('Application startup complete') || 
+        output.includes('Uvicorn running on') || 
+        output.includes('started server')) {
+      serverStarted = true;
+      clearTimeout(startTimeout);
+      console.log('Backend server started successfully!');
+    }
   });
   
   backendProcess.stderr.on('data', (data) => {
@@ -77,11 +121,18 @@ function startBackendServer() {
   });
   
   backendProcess.on('close', (code) => {
+    clearTimeout(startTimeout);
     console.log(`Backend process exited with code ${code}`);
-    if (code !== 0) {
+    if (code !== 0 && !process.exitCode) {
       console.log('Attempting to restart backend server in 5 seconds...');
       setTimeout(startBackendServer, 5000);
     }
+  });
+  
+  backendProcess.on('error', (err) => {
+    clearTimeout(startTimeout);
+    console.error(`Failed to start backend process: ${err.message}`);
+    console.log('Please check if Python is installed and in your PATH');
   });
   
   return backendProcess;

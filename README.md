@@ -260,6 +260,109 @@ To start the production server:
 npm start
 ```
 
+## Setting Up on a New Server
+
+When deploying ComfyDash on a new server, follow these steps to ensure proper configuration:
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/your-repo/comfydash.git
+   cd comfydash
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   # Install Node.js dependencies
+   npm install
+   
+   # Install Python dependencies
+   cd backend
+   pip install -r requirements.txt
+   cd ..
+   ```
+
+3. **Configure Backend**
+   Create a `.env` file in the `backend` directory with the following content:
+   ```
+   API_PORT=8618
+   COMFYUI_PATH=/absolute/path/to/your/comfyui
+   ```
+   
+   Make sure to replace `/absolute/path/to/your/comfyui` with the actual path to your ComfyUI installation.
+
+4. **Start the Application**
+   There are several ways to start the application:
+   
+   - **Using the start script (recommended)**:
+     - On Windows: `start.bat`
+     - On Linux/macOS: `./start.sh`
+   
+   - **Using npm**:
+     ```bash
+     npm run dev
+     ```
+   
+   - **Starting frontend and backend separately** (for debugging):
+     ```bash
+     # Terminal 1: Start backend
+     npm run dev:backend
+     
+     # Terminal 2: Start frontend
+     npm run dev:frontend
+     ```
+
+5. **Verify Both Servers Are Running**
+   - Backend should be running on port 8618
+   - Frontend should be running on port 8619
+   - Open http://localhost:8619 in your browser
+
+## Troubleshooting
+
+### Connection Issues
+
+If you encounter connection errors when starting ComfyDash, try the following steps:
+
+1. **Verify Backend Server**
+   - Make sure the backend server is running on port 8618
+   - Check for any error messages in the terminal where you started the backend
+   - Verify that the `.env` file in the backend directory has the correct configuration
+
+2. **Check Port Availability**
+   - Ensure ports 8618 (backend) and 8619 (frontend) are not being used by other applications
+   - You can check using:
+     ```bash
+     # On Windows
+     netstat -ano | findstr 8618
+     netstat -ano | findstr 8619
+     
+     # On Linux/macOS
+     netstat -tulpn | grep 8618
+     netstat -tulpn | grep 8619
+     ```
+
+3. **Start Servers Separately**
+   - Try starting the backend and frontend separately for debugging:
+     ```bash
+     # Start backend only
+     cd backend
+     python run_server.py
+     
+     # In another terminal, start frontend only
+     npm run dev:frontend
+     ```
+
+4. **Check ComfyUI Path**
+   - Ensure the `COMFYUI_PATH` in your `.env` file points to a valid ComfyUI installation
+
+5. **Firewall Settings**
+   - If running on a remote server, check that ports 8618 and 8619 are open in your firewall
+
+### Common Errors
+
+- **"Cannot read properties of undefined (reading 'length')"**: This usually indicates that the frontend cannot connect to the backend API. Check that the backend server is running.
+
+- **"Failed to fetch settings: TypeError: Failed to fetch"**: The frontend cannot reach the backend API. Verify that the backend server is running on the correct port.
+
 ## License
 
 MIT License

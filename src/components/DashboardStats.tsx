@@ -15,28 +15,47 @@ type SystemStats = {
 export default function DashboardStats() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const getStats = async () => {
       try {
         const data = await fetchSystemStats();
         setStats(data);
+        setError(null);
       } catch (error) {
         console.error('Failed to fetch system stats:', error);
+        setError('Failed to connect to the backend server. Please make sure it\'s running.');
       } finally {
         setLoading(false);
       }
     };
 
-    // Get refresh interval from settings or use default (1000ms)
+    // Use a default refresh interval of 1000ms (1 second)
+    // We'll skip trying to fetch from the API if it's not available
+    const DEFAULT_REFRESH_INTERVAL = 1000;
+    
     const fetchRefreshInterval = async () => {
       try {
-        const settings = await fetch('/api/settings');
-        const settingsData = await settings.json();
-        return settingsData.refreshInterval || 1000;
+        // Try to fetch settings, but with a short timeout to fail fast if API is unavailable
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1000);
+        
+        const response = await fetch('/api/settings', { 
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const settingsData = await response.json();
+        return settingsData.refreshInterval || DEFAULT_REFRESH_INTERVAL;
       } catch (error) {
         console.error('Failed to fetch settings:', error);
-        return 1000; // Default to 1 second if settings can't be fetched
+        return DEFAULT_REFRESH_INTERVAL; // Use default if settings can't be fetched
       }
     };
 
@@ -44,9 +63,21 @@ export default function DashboardStats() {
     
     // Initialize stats and set up interval
     const initStats = async () => {
-      await getStats(); // Get initial stats
+      try {
+        await getStats(); // Get initial stats
+      } catch (err) {
+        console.error('Failed to get initial stats:', err);
+        // Continue even if initial stats fetch fails
+      }
       
-      const refreshInterval = await fetchRefreshInterval();
+      let refreshInterval = DEFAULT_REFRESH_INTERVAL;
+      
+      try {
+        refreshInterval = await fetchRefreshInterval();
+      } catch (err) {
+        console.warn('Using default refresh interval due to error:', err);
+      }
+      
       console.log(`Setting refresh interval to ${refreshInterval}ms`);
       
       // Clear any existing interval
@@ -102,6 +133,18 @@ export default function DashboardStats() {
           <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
         ))}
       </>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="col-span-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <strong className="font-bold">Connection Error!</strong>
+        <p className="block sm:inline mt-1">{error}</p>
+        <p className="mt-2">
+          Please make sure the backend server is running on port 8618 and is accessible.
+        </p>
+      </div>
     );
   }
 

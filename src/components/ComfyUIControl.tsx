@@ -44,7 +44,7 @@ export default function ComfyUIControl() {
   const fetchLogs = async () => {
     try {
       const logsData = await getComfyUILogs();
-      setLogs(logsData.logs);
+      setLogs(logsData.logs || []);
       scrollToBottom();
     } catch (err) {
       console.error('Failed to fetch ComfyUI logs:', err);
@@ -124,7 +124,7 @@ export default function ComfyUIControl() {
       setIsInstalling(true);
       setStatus('installing');
       setError(null);
-      setLogs([...logs, `Starting ComfyUI installation using ${installMethod}...`]);
+      setLogs([...(logs || []), `Starting ComfyUI installation using ${installMethod}...`]);
       
       const result = await installComfyUI(installPath || undefined, installMethod);
       
@@ -283,7 +283,7 @@ export default function ComfyUIControl() {
       
       {status !== 'not_configured' && (
         <div className="bg-black text-green-400 p-4 rounded-md h-64 overflow-y-auto font-mono text-sm">
-          {logs.length > 0 ? (
+          {logs && logs.length > 0 ? (
             logs.map((log, index) => (
               <div key={index} className="whitespace-pre-wrap">
                 {log}
