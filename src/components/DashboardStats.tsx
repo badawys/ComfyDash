@@ -31,30 +31,50 @@ export default function DashboardStats() {
       }
     };
 
-    // Use a default refresh interval of 1000ms (1 second)
     // We'll skip trying to fetch from the API if it's not available
-    const DEFAULT_REFRESH_INTERVAL = 1000;
+    // Default refresh interval is defined inside fetchRefreshInterval
     
     const fetchRefreshInterval = async () => {
+      // Use a default refresh interval of 1000ms (1 second)
+      const DEFAULT_REFRESH_INTERVAL = 1000;
+      
       try {
         // Try to fetch settings, but with a short timeout to fail fast if API is unavailable
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1000);
+        let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+          controller.abort('Timeout exceeded');
+          timeoutId = null;
+        }, 1000);
         
-        const response = await fetch('/api/settings', { 
-          signal: controller.signal 
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+          const response = await fetch('/api/settings', { 
+            signal: controller.signal 
+          });
+          
+          // Clear timeout if fetch completed successfully
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const settingsData = await response.json();
+          return settingsData.refreshInterval || DEFAULT_REFRESH_INTERVAL;
+        } catch (error) {
+          // Clear timeout if it hasn't fired yet
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          throw error; // Re-throw to be caught by outer catch
         }
-        
-        const settingsData = await response.json();
-        return settingsData.refreshInterval || DEFAULT_REFRESH_INTERVAL;
       } catch (error) {
-        console.error('Failed to fetch settings:', error);
+        // Don't log AbortError as it's expected when timeout occurs
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          console.error('Failed to fetch settings:', error);
+        }
         return DEFAULT_REFRESH_INTERVAL; // Use default if settings can't be fetched
       }
     };
@@ -70,7 +90,8 @@ export default function DashboardStats() {
         // Continue even if initial stats fetch fails
       }
       
-      let refreshInterval = DEFAULT_REFRESH_INTERVAL;
+      // Start with a default value that will be immediately replaced
+      let refreshInterval = 1000; // 1 second default
       
       try {
         refreshInterval = await fetchRefreshInterval();
