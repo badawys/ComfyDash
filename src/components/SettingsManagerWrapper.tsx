@@ -1,7 +1,6 @@
 "use client";
 
-// This is a wrapper component that imports the new refactored SettingsManager
-// We're using this approach to gradually migrate to the new implementation
+import React from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the new SettingsManager component
@@ -12,6 +11,6 @@ const NewSettingsManager = dynamic(
 
 // This wrapper component allows us to gradually migrate to the new implementation
 // while maintaining compatibility with existing code
-export default function SettingsManager() {
+export default function SettingsManagerWrapper() {
   return <NewSettingsManager />;
 }

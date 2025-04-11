@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import urllib.parse
 from tqdm import tqdm
+from utils.settings_manager import SettingsManager
 
 # For HuggingFace integration
 try:
@@ -155,8 +156,8 @@ class ModelDownloader:
                 "timestamp": time.time()
             }
     
-    def download_from_civitai(self, model_id: str, model_name: str, model_type: str, download_id: str) -> None:
-        """Download a model from Civitai"""
+    def download_from_civitai(self, model_id: str, model_name: str, model_type: str, download_id: str, version_id: str = None) -> None:
+        """Download a model from Civitai with optional version_id"""
         try:
             # Update download status
             active_downloads[download_id] = {
@@ -167,15 +168,34 @@ class ModelDownloader:
                 "timestamp": time.time()
             }
             
+            # Get settings to access the API key
+            settings_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "settings.json")
+            settings_manager = SettingsManager(settings_file)
+            settings = settings_manager.get_settings()
+            
             # Get model info from Civitai API
             api_url = f"https://civitai.com/api/v1/models/{model_id}"
-            response = requests.get(api_url)
+            
+            # Add API key if available
+            headers = {}
+            if 'civitaiApiKey' in settings and settings['civitaiApiKey']:
+                headers['Authorization'] = f"Bearer {settings['civitaiApiKey']}"
+            
+            response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             model_info = response.json()
             
-            # Find the latest version and download URL
+            # Find the specified version or latest version and download URL
             if "modelVersions" in model_info and len(model_info["modelVersions"]) > 0:
-                version = model_info["modelVersions"][0]  # Latest version
+                # If version_id is specified, find that version
+                if version_id:
+                    version = next((v for v in model_info["modelVersions"] if str(v.get("id")) == version_id), None)
+                    if not version:
+                        # If specified version not found, log error and fall back to latest version
+                        print(f"Warning: Specified version {version_id} not found, falling back to latest version")
+                        version = model_info["modelVersions"][0]  # Latest version
+                else:
+                    version = model_info["modelVersions"][0]  # Latest version
                 
                 # Find the primary file or first file
                 download_url = None
@@ -294,7 +314,7 @@ class ModelDownloader:
                 "timestamp": time.time()
             }
     
-    def start_download(self, source: str, model_id: str = None, url: str = None, 
+    def start_download(self, source: str, model_id: str = None, version_id: str = None, url: str = None, 
                       model_name: str = None, model_type: str = "checkpoint", 
                       target_path: str = None) -> Dict[str, Any]:
         """Start a model download based on source"""
@@ -315,7 +335,7 @@ class ModelDownloader:
         if source.lower() == "civitai" and model_id:
             thread = threading.Thread(
                 target=self.download_from_civitai,
-                args=(model_id, model_name, model_type, download_id)
+                args=(model_id, model_name, model_type, download_id, version_id)
             )
             thread.daemon = True
             thread.start()
@@ -460,6 +480,11 @@ class ModelDownloader:
     def search_civitai_models(self, query: str, model_type: str = None, page: int = 1) -> Dict[str, Any]:
         """Search for models on Civitai"""
         try:
+            # Get settings to access the API key
+            settings_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "settings.json")
+            settings_manager = SettingsManager(settings_file)
+            settings = settings_manager.get_settings()
+            
             # Build the API URL
             api_url = "https://civitai.com/api/v1/models"
             params = {
@@ -484,8 +509,12 @@ class ModelDownloader:
                 if civitai_type:
                     params["types"] = civitai_type
             
-            # Make the API request
-            response = requests.get(api_url, params=params)
+            # Make the API request with API key if available
+            headers = {}
+            if 'civitaiApiKey' in settings and settings['civitaiApiKey']:
+                headers['Authorization'] = f"Bearer {settings['civitaiApiKey']}"
+            
+            response = requests.get(api_url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
             

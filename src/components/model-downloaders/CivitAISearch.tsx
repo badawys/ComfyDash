@@ -10,24 +10,31 @@ interface CivitAISearchProps {
 }
 
 interface CivitAIModel {
-  id: string;
+  id: string | number;
   name: string;
   description: string;
   type: string;
   nsfw: boolean;
-  creator: {
+  image?: string; // Direct image URL in the new API format
+  creator?: {
     username: string;
   };
-  stats: {
+  stats?: {
     downloadCount: number;
     rating: number;
   };
-  modelVersions: {
-    id: string;
+  // New API format fields
+  versionId?: string | number;
+  versionName?: string;
+  downloadCount?: number;
+  rating?: number;
+  // Traditional format fields
+  modelVersions?: {
+    id: string | number;
     name: string;
-    createdAt: string;
-    downloadUrl: string;
-    images: { url: string; nsfw: boolean }[];
+    createdAt?: string;
+    downloadUrl?: string;
+    images?: { url: string; nsfw?: boolean }[];
   }[];
 }
 
@@ -105,22 +112,59 @@ export default function CivitAISearch({ onDownload, isDownloading }: CivitAISear
 
   const handleModelSelect = (model: CivitAIModel) => {
     setSelectedModel(model);
-    setSelectedVersionId(model.modelVersions[0]?.id || null);
+    
+    // Handle both API response formats - either modelVersions array or direct versionId
+    if (model.versionId) {
+      // Direct version ID in the response (new API format)
+      setSelectedVersionId(String(model.versionId));
+    } else if (model.modelVersions && model.modelVersions.length > 0) {
+      // Traditional format with modelVersions array
+      setSelectedVersionId(model.modelVersions[0]?.id ? String(model.modelVersions[0].id) : null);
+    } else {
+      setSelectedVersionId(null);
+    }
+    
     setCustomName(model.name);
   };
 
   const handleDownload = () => {
     if (!selectedModel || !selectedVersionId) return;
     
-    const selectedVersion = selectedModel.modelVersions.find(v => v.id === selectedVersionId);
-    if (!selectedVersion) return;
+    // Handle both API response formats
+    let modelType = selectedModel.type || 'Unknown';
+    let modelName = customName || selectedModel.name;
+    
+    // Direct version ID format (new API format)
+    if (selectedModel.versionId) {
+      onDownload({
+        source: 'civitai',
+        modelId: selectedModel.id,
+        versionId: selectedVersionId,
+        modelName: modelName,
+        modelType: modelType,
+        targetPath: customPath || undefined,
+      });
+      return;
+    }
+    
+    // Traditional format with modelVersions array
+    if (!selectedModel.modelVersions || selectedModel.modelVersions.length === 0) {
+      console.error('No model versions available');
+      return;
+    }
+    
+    const selectedVersion = selectedModel.modelVersions.find(v => String(v.id) === selectedVersionId);
+    if (!selectedVersion) {
+      console.error('Selected version not found');
+      return;
+    }
     
     onDownload({
       source: 'civitai',
       modelId: selectedModel.id,
       versionId: selectedVersionId,
-      modelName: customName || selectedModel.name,
-      modelType: selectedModel.type,
+      modelName: modelName,
+      modelType: modelType,
       targetPath: customPath || undefined,
     });
     
@@ -206,17 +250,44 @@ export default function CivitAISearch({ onDownload, isDownloading }: CivitAISear
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              {selectedModel.modelVersions.find(v => v.id === selectedVersionId)?.images?.[0]?.url && (
+              {/* Handle both direct image URL and modelVersions array formats */}
+              {selectedModel.image ? (
                 <img
-                  src={selectedModel.modelVersions.find(v => v.id === selectedVersionId)?.images[0].url}
+                  src={selectedModel.image}
                   alt={selectedModel.name}
                   className="w-full h-auto rounded-md mb-4"
+                  onError={(e) => {
+                    // Handle image load error by setting a fallback
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM5OTk5OTkiPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                  }}
                 />
+              ) : selectedModel.modelVersions && selectedModel.modelVersions.length > 0 && selectedVersionId ? (
+                selectedModel.modelVersions.find(v => String(v.id) === selectedVersionId)?.images?.[0]?.url ? (
+                  <img
+                    src={selectedModel.modelVersions.find(v => String(v.id) === selectedVersionId)?.images?.[0].url}
+                    alt={selectedModel.name}
+                    className="w-full h-auto rounded-md mb-4"
+                    onError={(e) => {
+                      // Handle image load error by setting a fallback
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM5OTk5OTkiPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-64 bg-gray-100 dark:bg-gray-700 rounded-md mb-4 flex items-center justify-center">
+                    <span className="text-gray-400 dark:text-gray-500">No image available</span>
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-64 bg-gray-100 dark:bg-gray-700 rounded-md mb-4 flex items-center justify-center">
+                  <span className="text-gray-400 dark:text-gray-500">No image available</span>
+                </div>
               )}
               
               <div className="mb-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Created by: {selectedModel.creator.username}</p>
-                <p className="text-sm">{selectedModel.description}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Created by: {selectedModel.creator?.username || 'Unknown'}</p>
+                <p className="text-sm">{selectedModel.description || 'No description available'}</p>
               </div>
             </div>
             
@@ -231,11 +302,22 @@ export default function CivitAISearch({ onDownload, isDownloading }: CivitAISear
                   value={selectedVersionId || ''}
                   onChange={(e) => setSelectedVersionId(e.target.value)}
                 >
-                  {selectedModel.modelVersions.map((version) => (
-                    <option key={version.id} value={version.id}>
-                      {version.name}
+                  {/* Handle both API response formats */}
+                  {selectedModel.versionId && selectedModel.versionName ? (
+                    // New API format with direct version info
+                    <option key={selectedModel.versionId} value={String(selectedModel.versionId)}>
+                      {selectedModel.versionName || `Version ${selectedModel.versionId}`}
                     </option>
-                  ))}
+                  ) : selectedModel.modelVersions && selectedModel.modelVersions.length > 0 ? (
+                    // Traditional format with modelVersions array
+                    selectedModel.modelVersions.map((version) => (
+                      <option key={version.id} value={String(version.id)}>
+                        {version.name || `Version ${version.id}`}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No versions available</option>
+                  )}
                 </select>
               </div>
               
@@ -292,21 +374,30 @@ export default function CivitAISearch({ onDownload, isDownloading }: CivitAISear
                   className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => handleModelSelect(model)}
                 >
-                  {model.modelVersions[0]?.images?.[0]?.url && (
+                  {model.modelVersions && model.modelVersions.length > 0 && model.modelVersions[0]?.images && model.modelVersions[0].images.length > 0 && model.modelVersions[0].images[0]?.url ? (
                     <div className="h-48 overflow-hidden">
                       <img
                         src={model.modelVersions[0].images[0].url}
                         alt={model.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Handle image load error by setting a fallback
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM5OTk5OTkiPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                        }}
                       />
+                    </div>
+                  ) : (
+                    <div className="h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                      <span className="text-gray-400 dark:text-gray-500">No image available</span>
                     </div>
                   )}
                   <div className="p-4">
                     <h3 className="font-medium text-gray-900 dark:text-white mb-1 truncate">{model.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Type: {model.type}</p>
                     <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>Downloads: {model.stats.downloadCount.toLocaleString()}</span>
-                      <span>Rating: {model.stats.rating.toFixed(1)}/5</span>
+                      <span>Downloads: {model.stats?.downloadCount ? model.stats.downloadCount.toLocaleString() : 'N/A'}</span>
+                      <span>Rating: {model.stats?.rating ? model.stats.rating.toFixed(1) + '/5' : 'N/A'}</span>
                     </div>
                   </div>
                 </div>

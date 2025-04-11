@@ -9,15 +9,12 @@ import {
   checkRequirementStatus
 } from '@/services/customNodesService';
 
-interface Requirement {
-  id: string;
-  name: string;
-  version?: string;
-  installed: boolean;
-  installedVersion?: string;
-  requiredBy: string[];
-  isInstalling?: boolean;
-  isUninstalling?: boolean;
+// Import the Requirement interface from customNodesService to ensure consistency
+import { Requirement as ServiceRequirement } from '@/services/customNodesService';
+
+// Extend the service interface to ensure all required fields are present
+interface Requirement extends ServiceRequirement {
+  id: string; // Ensure id is required
 }
 
 export default function RequirementsManager() {
@@ -36,10 +33,37 @@ export default function RequirementsManager() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getRequirementsList();
-      setRequirements(data.requirements);
+      // Define a type for the possible response formats
+      type RequirementsResponse = 
+        | ServiceRequirement[] 
+        | { requirements: ServiceRequirement[] };
+      
+      const data = await getRequirementsList() as RequirementsResponse;
+      // Process the requirements data to ensure it has all required fields
+      let requirementsList: Requirement[] = [];
+      
+      if (data && Array.isArray(data)) {
+        // If data is already an array
+        requirementsList = data.map((req: ServiceRequirement) => ({
+          ...req,
+          id: req.id || req.name // Use name as fallback ID if not provided
+        }));
+      } else if (data && typeof data === 'object' && 'requirements' in data && Array.isArray(data.requirements)) {
+        // If data is an object with a requirements array
+        requirementsList = data.requirements.map((req: ServiceRequirement) => ({
+          ...req,
+          id: req.id || req.name // Use name as fallback ID if not provided
+        }));
+      } else {
+        console.error('Invalid requirements data format:', data);
+        setError('Failed to load requirements data. Invalid format received.');
+      }
+      
+      setRequirements(requirementsList);
     } catch (error: any) {
+      console.error('Error fetching requirements:', error);
       setError(error.response?.data?.message || error.message || 'Failed to fetch requirements');
+      setRequirements([]); // Ensure requirements is always an array
     } finally {
       setLoading(false);
     }
@@ -137,7 +161,8 @@ export default function RequirementsManager() {
     }
   };
 
-  const filteredRequirements = requirements.filter(req => {
+  // Ensure requirements is always an array before filtering
+  const filteredRequirements = (requirements || []).filter(req => {
     if (filter === 'installed') return req.installed;
     if (filter === 'missing') return !req.installed;
     return true;

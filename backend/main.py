@@ -3,10 +3,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Import settings manager to get configuration from settings.json
+from utils.settings_manager import SettingsManager
 
 # Import API routers
 from api.system import router as system_router
@@ -15,6 +14,7 @@ from api.comfyui import router as comfyui_router
 from api.settings import router as settings_router
 from api.custom_nodes import router as custom_nodes_router
 from api.install import router as install_router
+from api.health import router as health_router
 
 # Create data directory if it doesn't exist
 os.makedirs(os.path.join(os.path.dirname(__file__), "data"), exist_ok=True)
@@ -42,6 +42,7 @@ app.include_router(comfyui_router, prefix="/api/comfyui", tags=["ComfyUI"])
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 app.include_router(custom_nodes_router, prefix="/api/custom-nodes", tags=["Custom Nodes"])
 app.include_router(install_router, prefix="/api/install", tags=["Installation"])
+app.include_router(health_router, prefix="/api/health", tags=["Health"])
 
 @app.get("/")
 async def root():
@@ -63,8 +64,14 @@ async def global_exception_handler(request, exc):
         )
 
 if __name__ == "__main__":
-    # Get port from environment variable or use default
-    port = int(os.getenv("API_PORT", 8618))
+    # Get settings from settings.json
+    settings_file = os.path.join(os.path.dirname(__file__), "data", "settings.json")
+    settings_manager = SettingsManager(settings_file)
+    settings = settings_manager.get_settings()
+    
+    # Get port from settings or use default
+    port = settings.get("apiPort", 8618)
+    debug = settings.get("debug", True)
     
     # Run the API server
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=debug)

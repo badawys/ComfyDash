@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiRequest } from '@/utils/apiUtils';
 
 const API_BASE_URL = '/api';
 
@@ -14,30 +14,34 @@ export interface ModelDownloadRequest {
 }
 
 export async function downloadModel(request: ModelDownloadRequest) {
-  const response = await axios.post(`${API_BASE_URL}/models/download`, request);
-  return response.data;
+  return await apiRequest('post', `${API_BASE_URL}/models/download`, request);
 }
 
 export async function getDownloadStatus(downloadId: string) {
-  const response = await axios.get(`${API_BASE_URL}/models/status/${downloadId}`);
-  return response.data;
+  return await apiRequest('get', `${API_BASE_URL}/models/status/${downloadId}`);
 }
 
 export async function searchCivitAIModels(query: string, type?: string, page: number = 1) {
-  const response = await axios.get(`${API_BASE_URL}/models/civitai/search`, {
+  return await apiRequest('get', `${API_BASE_URL}/models/search/civitai`, undefined, {
     params: { query, type, page }
   });
-  return response.data;
 }
 
 export async function searchHuggingFaceModels(query: string, type?: string, page: number = 1) {
-  const response = await axios.get(`${API_BASE_URL}/models/huggingface/search`, {
+  return await apiRequest('get', `${API_BASE_URL}/models/search/huggingface`, undefined, {
     params: { query, type, page }
   });
-  return response.data;
 }
 
 export async function getModelsList() {
-  const response = await axios.get(`${API_BASE_URL}/models/list`);
-  return response.data;
+  try {
+    return await apiRequest('get', `${API_BASE_URL}/models/list`);
+  } catch (error) {
+    console.error('Error fetching models list:', error);
+    // Return a default empty models list if the API call fails
+    return {
+      models: [],
+      categories: []
+    };
+  }
 }

@@ -31,9 +31,12 @@ export default function InstalledModels() {
       setLoading(true);
       setError(null);
       const data = await getModelsList();
-      setModels(data.models);
+      // Ensure data.models exists before setting state
+      setModels(data?.models || []);
     } catch (error: any) {
       setError(error.response?.data?.message || error.message || 'Failed to fetch models');
+      // Set models to empty array on error
+      setModels([]);
     } finally {
       setLoading(false);
     }
@@ -81,7 +84,8 @@ export default function InstalledModels() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const filteredModels = models.filter(model => {
+  // Ensure models is an array before filtering
+  const filteredModels = models ? models.filter(model => {
     // Apply type filter
     if (filter !== 'all' && model.type !== filter) return false;
     
@@ -89,9 +93,10 @@ export default function InstalledModels() {
     if (searchTerm && !model.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     
     return true;
-  });
+  }) : [];
 
-  const modelTypes = ['all', ...Array.from(new Set(models.map(model => model.type)))];
+  // Ensure models is an array before mapping
+  const modelTypes = ['all', ...Array.from(new Set(models ? models.map(model => model.type) : []))];
 
   return (
     <div className="space-y-6">

@@ -24,12 +24,23 @@ class SettingsManager:
             "customNodesPath": "",  # Will be set based on comfyUIPath
             "autoUpdateEnabled": True,
             "checkForUpdatesOnStartup": True,
+            "autoUpdateCustomNodes": True,  # Auto-update custom nodes
+            "startComfyUIOnBoot": False,  # Start ComfyUI on boot
             "theme": "system",
             "refreshInterval": 1000,  # Default to 1 second refresh interval
             "maxConcurrentDownloads": 3,
             "defaultModelType": "checkpoint",
             "selectedGpuId": "0",  # Default GPU ID
             "selectedStoragePath": "",  # Default storage path
+            "gpuMonitoringEnabled": True,  # Enable GPU monitoring
+            # API keys for external services
+            "civitaiApiKey": "",  # CivitAI API key
+            "huggingfaceApiKey": "",  # Hugging Face API key
+            # Server configuration settings (previously in .env)
+            "serverPort": 8188,  # Default ComfyUI server port
+            "apiPort": 8618,  # Default API port
+            "debug": True,
+            "allowCors": True,
             "lastUpdated": time.time()
         }
     
@@ -78,11 +89,10 @@ class SettingsManager:
     
     def update_settings(self, new_settings: Dict[str, Any]) -> Dict[str, Any]:
         """Update settings with new values"""
-        # Update only valid settings
+        # Update settings with new values from frontend
         for key, value in new_settings.items():
-            # Make sure to include the new settings fields
-            if key in self.settings or key in ['selectedGpuId', 'selectedStoragePath']:
-                self.settings[key] = value
+            # Accept all settings from the frontend, including new ones
+            self.settings[key] = value
         
         # If ComfyUI path is updated, update related paths
         if "comfyUIPath" in new_settings and new_settings["comfyUIPath"]:

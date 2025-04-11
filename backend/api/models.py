@@ -36,6 +36,7 @@ def get_model_downloader(settings_manager: SettingsManager = Depends(get_setting
 class ModelDownloadRequest(BaseModel):
     source: str  # 'civitai', 'huggingface', 'url'
     modelId: Optional[str] = None
+    versionId: Optional[str] = None  # Added versionId for CivitAI version selection
     url: Optional[str] = None
     modelName: Optional[str] = None
     modelType: str
@@ -54,6 +55,7 @@ async def download_model(
     return downloader.start_download(
         source=request.source,
         model_id=request.modelId,
+        version_id=request.versionId,  # Pass the versionId to the downloader
         url=request.url,
         model_name=request.modelName,
         model_type=request.modelType,
